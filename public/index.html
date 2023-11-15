@@ -1,0 +1,222 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ... (other meta tags and title) -->
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow: auto; /* Hide overflow at the body level */
+    }
+  
+    .header {
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+      text-align: center;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+    }
+  
+    .header label,
+    .header input,
+    .header button {
+      margin: 0 5px;
+    }
+  
+    .container {
+      flex-grow: 1;
+      width: 100%;
+      max-width: 800px;
+      margin: 60px auto 20px; /* Adjusted margin to accommodate the header */
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+  
+    #messages {
+      flex-grow: 1;
+      overflow-y: hidden;
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+  
+    #messageInput {
+      width: calc(100% - 20px);
+      padding: 10px;
+      margin-right: 10px;
+    }
+  
+    #sendMessageBtn {
+      padding: 10px;
+      background-color: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  
+    #messageForm {
+      display: flex;
+      align-items: flex-end;
+    }
+  </style>
+  
+  <body>
+    <div class="header">
+      <label for="usernameInput">Username:</label>
+      <input type="text" id="usernameInput" placeholder="Enter your username">
+      <button onclick="createAccount()">Register</button>
+  
+      <label for="roomInput">Room:</label>
+      <input type="text" id="roomInput" placeholder="Enter room name">
+      <button onclick="joinRoom()">Join Room</button>
+    </div>
+  
+    <div class="container">
+      <div id="messages"></div>
+      <form id="messageForm">
+        <input type="text" id="messageInput" placeholder="Type your message">
+        <button type="button" id="sendMessageBtn" onclick="sendMessage()">Send</button>
+      </form>
+    </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    function joinRoom() {
+    const roomInput = document.getElementById('roomInput');
+    const room = roomInput.value.trim();
+
+    if (room !== '') {
+      // Save room name in local storage
+      localStorage.setItem('currentRoom', room);
+
+      // Join the room
+      socket.emit('joinRoom', room);
+    }
+  }
+
+  function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const messageText = messageInput.value.trim();
+
+    if (messageText !== '') {
+      const data = {
+        sender: getUsername(), // Use the current username
+        text: messageText,
+        room: localStorage.getItem('currentRoom'), // Get room name from local storage
+      };
+
+      socket.emit('message', data);
+
+      // Clear the input field
+      messageInput.value = '';
+    }
+  }
+
+    socket.on('allMessages', (messages) => {
+      const messagesDiv = document.getElementById('messages');
+      messages.forEach((message) => {
+        displayMessage(message);
+      });
+    });
+
+    socket.on('message', (data) => {
+      displayMessage(data);
+    });
+
+    socket.on('accountCreated', (user) => {
+      console.log('Account created:', user);
+      // Display a welcome message or redirect to the chat interface
+    });
+
+    socket.on('accountCreationError', (error) => {
+      console.error('Account creation error:', error);
+      // Display an error message to the user
+    });
+
+    function displayMessage(data) {
+  const messagesDiv = document.getElementById('messages');
+  const messageElement = document.createElement('p');
+  messageElement.textContent = `${data.sender}: ${data.text}`;
+  messagesDiv.appendChild(messageElement);
+
+  // Scroll to the bottom of the messages div
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+
+    function createAccount() {
+      const usernameInput = document.getElementById('usernameInput');
+      const username = usernameInput.value.trim();
+
+      if (username !== '') {
+        setUsername(username);
+        socket.emit('createAccount', username);
+      }
+    }
+
+    function setUsername(username) {
+      localStorage.setItem('username', username);
+    }
+
+    function getUsername() {
+      return localStorage.getItem('username') || 'You';
+    }
+    
+    // Add this function to scroll to the bottom of the messages container
+function scrollToBottom() {
+  const messagesDiv = document.getElementById('messages');
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// Modify the displayMessage function to scroll after displaying a message
+function displayMessage(data) {
+    const messagesDiv = document.getElementById('messages');
+    const messageElement = document.createElement('p');
+    messageElement.textContent = `${data.sender}: ${data.text}`;
+    messagesDiv.appendChild(messageElement);
+    messageElement.scrollIntoView(); // Scroll to the newly added message
+  }
+
+  // Modify the sendMessage function to scroll after sending a message
+  function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const messageText = messageInput.value.trim();
+
+    if (messageText !== '') {
+      const data = {
+        sender: getUsername(),
+        text: messageText,
+        room: localStorage.getItem('currentRoom'),
+      };
+
+      socket.emit('message', data);
+      messageInput.value = '';
+      scrollToBottom(); // Scroll to the bottom after sending a message
+    }
+  }
+
+    document.getElementById('messageInput').addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault(); // Prevent the default form submission
+        sendMessage(); // Call the sendMessage function directly
+      }
+    });
+  </script>
+</body>
+</html>
